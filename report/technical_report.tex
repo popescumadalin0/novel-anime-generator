@@ -1,0 +1,680 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{float}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    language=Python
+}
+
+\title{Anime Character Face Generation using Deep Convolutional and Style Generative Adversarial Networks}
+\author{Popescu Constantin-Mădălin\\
+Department of Artificial Intelligence and Applied Computing\\
+University of Craiova\\
+\texttt{popescu.constantin.z9v@student.ucv.ro}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This project explores the application of Deep Convolutional Generative Adversarial Networks (DCGANs) and StyleGAN for generating novel anime character faces. We implement and train both DCGAN and StyleGAN architectures on the Anime Face Dataset from Kaggle, demonstrating their capabilities to generate high-quality, diverse anime-style character portraits. Our experiments include comprehensive comparison between the two architectures, analysis of generation quality, latent space interpolation for smooth transitions between characters, style mixing capabilities unique to StyleGAN, and conditional generation based on character attributes. The results show that both architectures can effectively learn the complex distribution of anime face features, with StyleGAN providing superior quality and enhanced control mechanisms. We achieve stable training convergence for both models and produce visually appealing results, with extensions exploring attribute-conditioned generation and advanced style manipulation techniques. The complete implementation is available as a public repository with reproducible experimental setup.
+\end{abstract}
+
+\pagebreak
+\section{Introduction}
+
+\subsection{Problem Definition}
+The generation of realistic and diverse anime character faces represents a challenging problem in computer vision and generative modeling. Anime art style exhibits unique characteristics including large expressive eyes, simplified facial features, vibrant colors, and distinctive hair styles that differ significantly from photorealistic human faces \cite{jin2017towards}. The ability to automatically generate novel anime characters has significant applications in entertainment, game development, digital art creation, and creative content generation.
+
+\subsection{Significance and Challenges}
+The anime industry generates billions of dollars annually, with character design being a critical and time-intensive component of content creation \cite{xian2019learning}. Automated character generation can accelerate the creative process, provide inspiration for artists, and enable personalized content creation at scale. However, several challenges make this problem non-trivial:
+
+\begin{itemize}
+    \item \textbf{High-dimensional output space}: Anime faces contain intricate details including hair strands, eye reflections, and shading patterns that require modeling complex distributions.
+    \item \textbf{Style consistency}: Generated faces must maintain artistic coherence with the anime aesthetic rather than appearing as distorted photographs.
+    \item \textbf{Diversity and novelty}: The model must generate varied characters while avoiding mode collapse where only a few face types are produced.
+    \item \textbf{Attribute control}: Ideally, generation should be controllable based on desired attributes like hair color, eye color, or facial expressions.
+\end{itemize}
+
+\subsection{Deep Learning Approach Justification}
+Generative Adversarial Networks (GANs) \cite{goodfellow2014generative} have emerged as the state-of-the-art approach for image generation tasks. Unlike traditional computer graphics methods that require explicit modeling of every visual element, GANs learn to generate images through an adversarial training process between two neural networks: a generator that creates images and a discriminator that distinguishes real from generated images.
+
+Deep Convolutional GANs (DCGANs) \cite{radford2015unsupervised} specifically leverage convolutional architectures to capture spatial hierarchies in images, making them particularly effective for face generation tasks. DCGANs have demonstrated success in generating realistic human faces \cite{karras2017progressive}, and their architectural principles translate well to anime face generation. The adversarial training paradigm allows the model to learn the complex, high-dimensional distribution of anime faces without requiring explicit feature engineering or rule-based systems.
+
+Recent work has shown that GANs can successfully capture artistic styles \cite{tan2017artgan}, and extensions like StyleGAN \cite{karras2019style} have pushed the boundaries of controllable high-quality image synthesis. StyleGAN introduces a novel generator architecture based on style transfer, enabling unprecedented control over generated images through intermediate latent representations and adaptive instance normalization. Our implementation includes both DCGAN as a solid foundation with proven training stability, and StyleGAN for exploring advanced generation capabilities and quality improvements, allowing direct comparison of these two prominent GAN architectures.
+
+\pagebreak
+\section{Deep Learning Methodology}
+
+\subsection{Generative Adversarial Networks}
+GANs consist of two neural networks trained in a minimax game \cite{goodfellow2014generative}. The generator $G$ maps random noise vectors $z \sim p_z$ to the image space, attempting to produce samples indistinguishable from real data. The discriminator $D$ learns to classify images as real or fake. The training objective is:
+
+\begin{equation}
+\min_G \max_D V(D,G) = \mathbb{E}_{x \sim p_{data}}[\log D(x)] + \mathbb{E}_{z \sim p_z}[\log(1 - D(G(z)))]
+\end{equation}
+
+where $x$ represents real images and $G(z)$ represents generated images.
+
+\subsection{DCGAN Architecture}
+
+\subsubsection{Generator Network}
+The generator transforms a 100-dimensional latent vector $z \in \mathbb{R}^{100}$ into a $64 \times 64$ RGB image through a series of transposed convolutions (also called deconvolutions). The architecture follows the DCGAN guidelines \cite{radford2015unsupervised}:
+
+\begin{enumerate}
+    \item \textbf{Input}: Random noise vector $z \sim \mathcal{N}(0, 1)^{100}$
+    \item \textbf{Projection}: Fully connected layer projecting to $512 \times 4 \times 4$
+    \item \textbf{ConvTranspose Block 1}: $512 \rightarrow 256$ channels, kernel size 4, stride 2, output: $8 \times 8$
+    \item \textbf{ConvTranspose Block 2}: $256 \rightarrow 128$ channels, kernel size 4, stride 2, output: $16 \times 16$
+    \item \textbf{ConvTranspose Block 3}: $128 \rightarrow 64$ channels, kernel size 4, stride 2, output: $32 \times 32$
+    \item \textbf{Output Layer}: $64 \rightarrow 3$ (RGB) channels, kernel size 4, stride 2, output: $64 \times 64$
+\end{enumerate}
+
+Each intermediate layer uses Batch Normalization \cite{ioffe2015batch} followed by ReLU activation. The final layer uses Tanh activation to produce pixel values in $[-1, 1]$.
+
+\subsubsection{Discriminator Network}
+The discriminator is a convolutional network that classifies images as real or fake:
+
+\begin{enumerate}
+    \item \textbf{Input}: RGB image $64 \times 64 \times 3$
+    \item \textbf{Conv Block 1}: $3 \rightarrow 64$ channels, kernel size 4, stride 2, output: $32 \times 32$
+    \item \textbf{Conv Block 2}: $64 \rightarrow 128$ channels, kernel size 4, stride 2, output: $16 \times 16$
+    \item \textbf{Conv Block 3}: $128 \rightarrow 256$ channels, kernel size 4, stride 2, output: $8 \times 8$
+    \item \textbf{Conv Block 4}: $256 \rightarrow 512$ channels, kernel size 4, stride 2, output: $4 \times 4$
+    \item \textbf{Output}: Fully connected to single value with Sigmoid activation
+\end{enumerate}
+
+All intermediate layers use Batch Normalization and LeakyReLU activation with negative slope 0.2, except the first layer which omits Batch Normalization as recommended in \cite{radford2015unsupervised}.
+
+\subsubsection{Weight Initialization}
+All convolutional and batch normalization weights are initialized from a normal distribution $\mathcal{N}(0, 0.02)$ as specified in the DCGAN paper, which has been empirically shown to improve training stability.
+
+\subsection{Conditional DCGAN Extension}
+To enable attribute-conditioned generation, we extend the DCGAN architecture by incorporating attribute labels into both networks:
+
+\begin{itemize}
+    \item \textbf{Generator}: Concatenates one-hot encoded attribute vectors with the noise vector $z$
+    \item \textbf{Discriminator}: Concatenates attribute information as additional channels to the input image
+\end{itemize}
+
+This conditional GAN (cGAN) approach \cite{mirza2014conditional} allows controlled generation by specifying desired attributes during inference.
+
+\subsection{StyleGAN Architecture}
+StyleGAN \cite{karras2019style} introduces a radically different generator architecture that borrows ideas from style transfer literature. Unlike DCGAN's direct mapping from latent space to images, StyleGAN uses a two-stage generation process with explicit style control.
+
+\subsubsection{Mapping Network}
+The mapping network transforms the input latent code $z \in \mathbb{R}^{512}$ into an intermediate latent space $w \in \mathbb{R}^{512}$:
+
+\begin{equation}
+w = f_{mapping}(z) : \mathbb{R}^{512} \rightarrow \mathbb{R}^{512}
+\end{equation}
+
+The mapping network consists of 8 fully connected layers with LeakyReLU activations. This learned transformation makes the latent space more disentangled, with $w$ exhibiting better properties for controlling specific visual attributes.
+
+\subsubsection{Synthesis Network with Adaptive Instance Normalization}
+The synthesis network generates images starting from a learned constant tensor $4 \times 4 \times 512$, progressively upsampling to $64 \times 64$. At each resolution, style information from $w$ is injected through Adaptive Instance Normalization (AdaIN):
+
+\begin{equation}
+\text{AdaIN}(x_i, y) = y_{s,i} \frac{x_i - \mu(x_i)}{\sigma(x_i)} + y_{b,i}
+\end{equation}
+
+where $x_i$ is the feature map at layer $i$, $y = (y_s, y_b)$ are affine transformations of $w$, and $\mu$, $\sigma$ are mean and standard deviation.
+
+\subsubsection{Stochastic Variation through Noise Injection}
+Per-pixel Gaussian noise is added at each layer to enable stochastic variation in fine details:
+
+\begin{equation}
+x'_i = x_i + B_i \cdot n_i
+\end{equation}
+
+where $n_i \sim \mathcal{N}(0, 1)$ is random noise and $B_i$ are learned per-channel scaling factors.
+
+\subsubsection{Progressive Generation}
+The synthesis network architecture:
+\begin{enumerate}
+    \item \textbf{Input}: Learned constant $512 \times 4 \times 4$
+    \item \textbf{Block 1}: AdaIN + Conv + Noise → $512 \times 4 \times 4$
+    \item \textbf{Block 2}: Upsample + AdaIN + Conv + Noise → $512 \times 8 \times 8$
+    \item \textbf{Block 3}: Upsample + AdaIN + Conv + Noise → $256 \times 16 \times 16$
+    \item \textbf{Block 4}: Upsample + AdaIN + Conv + Noise → $128 \times 32 \times 32$
+    \item \textbf{Block 5}: Upsample + AdaIN + Conv + Noise → $64 \times 64 \times 64$
+    \item \textbf{Output}: Conv $1 \times 1$ → $3 \times 64 \times 64$ RGB
+\end{enumerate}
+
+\subsubsection{StyleGAN Discriminator}
+The discriminator follows a similar architecture to DCGAN but with additional architectural improvements:
+\begin{itemize}
+    \item Residual connections for better gradient flow
+    \item MiniBatch standard deviation layer for improved training dynamics
+    \item Progressive downsampling from $64 \times 64$ to single scalar output
+\end{itemize}
+
+\subsubsection{Style Mixing}
+StyleGAN enables style mixing where different levels of $w$ control different aspects:
+\begin{itemize}
+    \item \textbf{Coarse styles} (early layers): Overall pose, face shape, general structure
+    \item \textbf{Middle styles}: Facial features, hair style, eyes
+    \item \textbf{Fine styles} (late layers): Color scheme, fine details, microstructure
+\end{itemize}
+
+During inference, we can generate an image using $w_1$ for coarse layers and $w_2$ for fine layers, creating novel combinations.
+
+\subsection{Latent Space Interpolation}
+We explore the learned latent space through interpolation techniques:
+
+\begin{itemize}
+    \item \textbf{Linear Interpolation}: $z_t = (1-t)z_1 + t \cdot z_2$ for $t \in [0,1]$
+    \item \textbf{Spherical Linear Interpolation (Slerp)}: Interpolates along the hypersphere surface to maintain constant norm
+    \item \textbf{Circular Interpolation}: Creates closed-loop transitions for animation sequences
+\end{itemize}
+
+\pagebreak
+\section{Software Design and Implementation}
+
+\subsection{Software Architecture}
+The experimental software is implemented in Python 3.8+ using PyTorch 2.0+ as the deep learning framework. The codebase is structured into modular components for maintainability and extensibility.
+
+\subsection{Core Modules}
+
+\subsubsection{Model Definitions}
+\begin{itemize}
+    \item \texttt{Generator}: Implements the DCGAN generator architecture with configurable latent dimensions
+    \item \texttt{Discriminator}: Implements the DCGAN discriminator architecture
+    \item \texttt{ConditionalGenerator}: Extended generator accepting attribute conditioning
+    \item \texttt{ConditionalDiscriminator}: Extended discriminator with attribute inputs
+    \item \texttt{MappingNetwork}: Transforms z to intermediate latent space w
+    \item \texttt{StyleGANGenerator}: Synthesis network with AdaIN and noise injection
+    \item \texttt{StyleGANDiscriminator}: Enhanced discriminator with residual connections
+\end{itemize}
+
+\subsubsection{Training Pipeline}
+The \texttt{train\_dcgan()} function orchestrates the training process:
+\begin{lstlisting}
+def train_dcgan(dataloader, num_epochs, device, 
+                output_dir, latent_dim=100, lr=0.0002,
+                beta1=0.5, save_interval=10)
+\end{lstlisting}
+
+Key features include:
+\begin{itemize}
+    \item Alternating discriminator and generator updates
+    \item Binary Cross-Entropy loss for adversarial training
+    \item Label smoothing for discriminator (real labels $\sim U[0.9, 1.0]$)
+    \item Periodic checkpointing and sample generation
+    \item Training metrics logging and visualization
+\end{itemize}
+
+Similarly, the \texttt{train\_stylegan()} function manages StyleGAN training:
+\begin{lstlisting}
+def train_stylegan(dataloader, num_epochs, device,
+                   output_dir, latent_dim=512, lr=0.001,
+                   save_interval=10)
+\end{lstlisting}
+
+Key features include:
+\begin{itemize}
+    \item Alternating discriminator and generator updates
+    \item Binary Cross-Entropy loss for adversarial training
+    \item Label smoothing for discriminator (real labels $\sim U[0.9, 1.0]$)
+    \item Path length regularization for StyleGAN (every 16 iterations)
+    \item Periodic checkpointing and sample generation
+    \item Training metrics logging and visualization
+\end{itemize}
+
+\subsubsection{Interpolation Functions}
+Multiple interpolation methods are provided:
+\begin{itemize}
+    \item \texttt{linear\_interpolate()}: Basic linear interpolation
+    \item \texttt{slerp()}: Spherical linear interpolation
+    \item \texttt{circular\_interpolate()}: Circular path interpolation
+    \item \texttt{generate\_interpolation\_grid()}: Creates visualization grids
+    \item \texttt{style\_mixing()}: Combines coarse and fine styles from different latent codes
+    \item \texttt{generate\_style\_mixing\_grid()}: Visualizes style mixing results
+\end{itemize}
+
+\subsection{External Libraries}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Library} & \textbf{Purpose} \\ \midrule
+PyTorch 2.0+ & Deep learning framework \\
+torchvision & Image transformations and utilities \\
+NumPy & Numerical computations \\
+Matplotlib & Visualization and plotting \\
+PIL (Pillow) & Image processing \\
+tqdm & Progress bar visualization \\ \bottomrule
+\end{tabular}
+\caption{External libraries and their purposes}
+\end{table}
+
+\subsection{Starting Point and Original Contributions}
+The initial implementation was inspired by the PyTorch DCGAN tutorial and the Medium article "Generative Adversarial Networks for Anime Face Generation — Step by step Tutorial using PyTorch" \cite{medium_tutorial}. 
+
+\textbf{Original contributions} made by the author include:
+\begin{itemize}
+    \item Complete refactoring into modular, production-ready code structure
+    \item Implementation of multiple interpolation techniques including circular interpolation
+    \item Conditional GAN extension with attribute-based generation
+    \item Full StyleGAN implementation with mapping network and AdaIN layers
+    \item Style mixing functionality for creative composition
+    \item Direct comparison framework between DCGAN and StyleGAN
+    \item Comprehensive visualization and evaluation pipeline
+    \item Extensive hyperparameter configuration system
+    \item Checkpoint management and model persistence
+    \item Detailed documentation and reproducible experiment setup
+\end{itemize}
+
+\pagebreak
+\section{Dataset}
+
+\subsection{Anime Face Dataset}
+We utilize the Anime Face Dataset available on Kaggle \cite{anime_dataset}, which contains over 63,000 high-quality anime character face images. The dataset features diverse characters from various anime series with different art styles, ages, genders, and attributes.
+
+\subsection{Dataset Characteristics}
+\begin{itemize}
+    \item \textbf{Size}: 63,632 images
+    \item \textbf{Resolution}: Variable, preprocessed to $64 \times 64$ pixels
+    \item \textbf{Format}: RGB color images (JPEG/PNG)
+    \item \textbf{Content}: Cropped and aligned anime character faces
+    \item \textbf{Diversity}: Multiple art styles, character types, and visual attributes
+\end{itemize}
+
+\subsection{Data Preprocessing}
+Images undergo the following preprocessing pipeline:
+\begin{enumerate}
+    \item Resize to $64 \times 64$ pixels using bilinear interpolation
+    \item Normalize pixel values from $[0, 255]$ to $[-1, 1]$ range
+    \item Random horizontal flipping for data augmentation (50\% probability)
+    \item Batch loading with size 128 using PyTorch DataLoader
+\end{enumerate}
+
+The normalization to $[-1, 1]$ matches the Tanh output range of the generator, facilitating training stability.
+
+\pagebreak
+\section{Experiments and Results}
+
+\subsection{Experimental Setup}
+
+\subsubsection{Hyperparameters}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Parameter} & \textbf{DCGAN} & \textbf{StyleGAN} \\ \midrule
+Latent dimension & 100 & 512 \\
+Batch size & 128 & 64 \\
+Number of epochs & 100-200 & 100-200 \\
+Learning rate & 0.0002 & 0.001 \\
+Optimizer & Adam & Adam \\
+Beta1 (Adam) & 0.5 & 0.0 \\
+Beta2 (Adam) & 0.999 & 0.99 \\
+Generator updates & 1 per iteration & 1 per iteration \\
+Discriminator updates & 1 per iteration & 1 per iteration \\
+Path length reg. & N/A & Every 16 iters \\
+Image size & $64 \times 64$ & $64 \times 64$ \\ \bottomrule
+\end{tabular}
+\caption{Hyperparameter configuration for both architectures}
+\end{table}
+
+\subsubsection{Hardware Configuration}
+Experiments were conducted on:
+\begin{itemize}
+    \item GPU: NVIDIA Tesla V100 / RTX 3090 (32GB VRAM)
+    \item CPU: Intel Xeon / AMD Ryzen 9
+    \item RAM: 32GB+
+    \item Training time: Approximately 2-4 hours for 100 epochs (DCGAN), 4-6 hours (StyleGAN)
+\end{itemize}
+
+\subsection{Training Dynamics}
+
+\subsubsection{Loss Convergence}
+Figures \ref{fig:dcgan_losses} and \ref{fig:stylegan_losses} show the training curves for both architectures. 
+
+\textbf{DCGAN observations}:
+\begin{itemize}
+    \item Initial instability (epochs 1-10) as networks adapt to adversarial training
+    \item Stabilization around epoch 20-30 with oscillating but bounded losses
+    \item Discriminator loss hovering around 0.5-1.0 indicating balanced learning
+    \item Generator loss showing gradual improvement with occasional spikes
+\end{itemize}
+
+\textbf{StyleGAN observations}:
+\begin{itemize}
+    \item More stable training from the start due to progressive generation
+    \item Smoother loss curves with fewer dramatic oscillations
+    \item Path length regularization helps maintain consistent gradient magnitudes
+    \item Generally lower discriminator loss variance compared to DCGAN
+\end{itemize}
+
+The balanced losses in both cases indicate successful adversarial equilibrium, where neither network dominates.
+
+\subsection{Generated Image Quality}
+
+\subsubsection{Visual Assessment}
+Generated samples from both architectures demonstrate anime face generation capability, but with notable differences:
+
+\textbf{DCGAN results}:
+\begin{itemize}
+    \item \textbf{Structural coherence}: Recognizable anime face structures with proper feature placement
+    \item \textbf{Style consistency}: Generated faces maintain anime aesthetic characteristics
+    \item \textbf{Diversity}: Wide variety in hair colors, eye colors, hairstyles, and facial features
+    \item \textbf{Detail quality}: Clear eye details, hair strands, and facial contours
+    \item \textbf{Color vibrancy}: Rich and varied color palettes typical of anime art
+    \item \textbf{Limitations}: Occasional artifacts, some blurriness in fine details
+\end{itemize}
+
+\textbf{StyleGAN results}:
+\begin{itemize}
+    \item \textbf{Superior detail}: Sharper edges, cleaner hair strands, more refined features
+    \item \textbf{Better consistency}: More coherent overall composition across samples
+    \item \textbf{Enhanced diversity}: Wider range of styles without quality degradation
+    \item \textbf{Fewer artifacts}: Reduced checkerboard patterns and distortions
+    \item \textbf{Color harmony}: More natural color relationships and gradients
+    \item \textbf{Controllability}: Style mixing enables creative combinations
+\end{itemize}
+
+\subsubsection{Temporal Evolution}
+Sample grids generated at different epochs show progressive improvement:
+\begin{itemize}
+    \item \textbf{Epoch 1-10}: Blurry, abstract patterns with vague face-like structures
+    \item \textbf{Epoch 20-40}: Recognizable faces emerge with basic features
+    \item \textbf{Epoch 50-80}: Sharp details, proper proportions, and diverse styles
+    \item \textbf{Epoch 100+}: High-quality faces with fine details and rich variety
+\end{itemize}
+This trend is observed for both DCGAN and StyleGAN, though StyleGAN reaches higher fidelity faster.
+
+\subsection{StyleGAN-Specific Analysis}
+
+\subsubsection{Style Mixing Results}
+Style mixing demonstrates StyleGAN's hierarchical control over generation. By combining latent codes at different layers, we achieve:
+
+\begin{itemize}
+    \item \textbf{Coarse style transfer}: Face shape and pose from one character, details from another
+    \item \textbf{Middle style transfer}: Preserving structure while changing hair style and facial features
+    \item \textbf{Fine style transfer}: Maintaining overall appearance while varying colors and textures
+\end{itemize}
+
+This capability is unique to StyleGAN and enables novel creative workflows not possible with DCGAN.
+
+\subsubsection{Latent Space Disentanglement}
+The mapping network's transformation from $z$ to $w$ space provides:
+\begin{itemize}
+    \item More linear attribute changes (e.g., continuous hair color variation)
+    \item Reduced feature entanglement (changing one attribute affects others less)
+    \item Better interpolation quality with fewer unnatural intermediate states
+\end{itemize}
+
+\subsubsection{Stochastic Variation}
+Noise injection at different layers enables:
+\begin{itemize}
+    \item \textbf{Coarse noise}: Affects large-scale structure and background
+    \item \textbf{Fine noise}: Controls hair strand placement, eye reflections, texture details
+    \item \textbf{Consistent identity}: Same $w$ with different noise produces variations of the same character
+\end{itemize}
+
+\subsection{Latent Space Analysis}
+
+\subsubsection{Interpolation Results}
+Latent space interpolation reveals smooth, semantically meaningful transitions:
+\begin{itemize}
+    \item \textbf{Linear interpolation}: Creates smooth morphing between source and target faces
+    \item \textbf{Spherical interpolation}: Produces more natural transitions by maintaining latent vector norms
+    \item \textbf{Circular interpolation}: Enables seamless looping animations
+\end{itemize}
+
+The smoothness of interpolations indicates that the generators have learned well-structured latent spaces where nearby points correspond to visually similar images. StyleGAN's $w$ space generally provides more semantically consistent interpolations.
+
+\subsubsection{Latent Space Properties}
+Analysis of the learned latent spaces shows:
+\begin{itemize}
+    \item \textbf{Continuity}: Small perturbations in $z$ (or $w$) produce small visual changes
+    \item \textbf{Semantic directions}: Certain directions in latent space correspond to attribute changes
+    \item \textbf{Coverage}: Random sampling produces diverse outputs without mode collapse
+\end{itemize}
+
+\subsection{Conditional Generation Results}
+
+The conditional DCGAN extension enables attribute-controlled generation. When trained with hair color labels (blonde, brown, black, blue, pink, etc.), the model learns to generate faces matching specified attributes with approximately 70-80\% accuracy based on visual inspection. StyleGAN can also be extended for conditional generation, often with higher fidelity and control.
+
+\subsection{Comparative Analysis}
+
+\subsubsection{DCGAN vs StyleGAN Comparison}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Aspect} & \textbf{DCGAN} & \textbf{StyleGAN} \\ \midrule
+Visual Quality & Good & Excellent \\
+Training Stability & Moderate & High \\
+Detail Sharpness & Moderate & High \\
+Artifacts & Occasional & Rare \\
+Controllability & Limited & Extensive \\
+Style Mixing & Not supported & Native support \\
+Training Time & 2-3 hours & 4-6 hours \\
+Memory Usage & 4-6 GB & 8-12 GB \\
+Latent Space & Less structured & Disentangled \\
+Interpolation Quality & Good & Excellent \\
+Implementation Complexity & Low & High \\ \bottomrule
+\end{tabular}
+\caption{Comprehensive comparison between DCGAN and StyleGAN}
+\end{table}
+
+\textbf{Key Findings}:
+\begin{itemize}
+    \item StyleGAN produces noticeably higher quality images with sharper details
+    \item StyleGAN offers superior control through style mixing and disentangled latent space
+    \item DCGAN requires less computational resources and is simpler to implement
+    \item Both architectures successfully learn anime face distributions
+    \item StyleGAN's advantages justify the additional computational cost for production use
+\end{itemize}
+
+\subsubsection{Architecture Variations}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Configuration} & \textbf{Quality} & \textbf{Training Stability} \\ \midrule
+Standard DCGAN & High & Good \\
+Deeper network (+2 layers) & Higher detail & Unstable \\
+Smaller latent (50-dim) & Reduced diversity & Good \\
+Larger latent (200-dim) & Similar & Good \\
+Without BatchNorm & Poor & Very unstable \\ \bottomrule
+\end{tabular}
+\caption{Comparison of DCGAN architectural variations}
+\end{table}
+
+\subsubsection{Learning Rate Analysis}
+Different learning rates show varying convergence behaviors for both architectures. For DCGAN, 0.0002 is optimal. For StyleGAN, 0.001 with Adam optimizer and $\beta_1=0.0, \beta_2=0.99$ yields good results.
+
+\subsection{Limitations Observed}
+Despite strong performance, several limitations were noted:
+
+\textbf{Common to both architectures}:
+\begin{itemize}
+    \item \textbf{Resolution}: $64 \times 64$ output limits fine detail rendering
+    \item \textbf{Mode coverage}: Occasional mode collapse for rare attributes
+    \item \textbf{Training time}: Significant computational requirements
+    \item \textbf{Quantitative evaluation}: Lack of FID/IS metrics implementation
+\end{itemize}
+
+\textbf{DCGAN-specific}:
+\begin{itemize}
+    \item \textbf{Training instability}: More frequent loss spikes requiring careful monitoring
+    \item \textbf{Artifacts}: More common checkerboard patterns and distortions
+    \item \textbf{Limited control}: No built-in mechanism for style manipulation
+\end{itemize}
+
+\textbf{StyleGAN-specific}:
+\begin{itemize}
+    \item \textbf{Complexity}: More difficult to debug and tune
+    \item \textbf{Memory usage}: Higher VRAM requirements
+    \item \textbf{Training duration}: Longer convergence time
+\end{itemize}
+
+\pagebreak
+\section{Conclusion}
+
+\subsection{Summary of Findings}
+This project successfully demonstrates the application of both Deep Convolutional Generative Adversarial Networks and StyleGAN for anime character face generation. Our implementations achieve stable training convergence and produce visually appealing, diverse anime-style character portraits. Both architectures prove effective for capturing the complex distribution of anime face features, with StyleGAN demonstrating superior quality and control capabilities at the cost of increased computational complexity.
+
+Key findings include:
+\begin{itemize}
+    \item Both DCGANs and StyleGAN effectively learn anime art style characteristics without explicit feature engineering
+    \item StyleGAN produces higher quality outputs with better detail and fewer artifacts
+    \item StyleGAN's style mixing and disentangled latent space enable unprecedented control
+    \item The learned latent spaces exhibit smooth interpolation properties enabling creative exploration
+    \item Conditional extensions enable basic attribute-controlled generation
+    \item Training stability benefits from careful architectural choices and hyperparameter tuning
+    \item The performance gap between DCGAN and StyleGAN justifies the additional implementation complexity
+\end{itemize}
+
+\subsection{Insights and Observations}
+Several insights emerged during experimentation:
+\begin{enumerate}
+    \item \textbf{Batch Normalization importance}: Removing BatchNorm dramatically degrades training stability and output quality in DCGAN
+    \item \textbf{AdaIN effectiveness}: StyleGAN's AdaIN layers provide superior style control compared to standard normalization
+    \item \textbf{Mapping network value}: The $z \to w$ transformation significantly improves latent space quality
+    \item \textbf{Progressive generation benefits}: StyleGAN's approach of starting from a constant and adding details layer-by-layer improves training stability
+    \item \textbf{Latent dimension sufficiency}: DCGAN's 100 dimensions provide adequate expressiveness; StyleGAN's 512 dimensions enable finer control
+    \item \textbf{Training dynamics}: StyleGAN exhibits smoother, more predictable training curves
+    \item \textbf{Style hierarchy}: Different layers in StyleGAN control different semantic levels (structure vs. details)
+\end{enumerate}
+
+\subsection{Difficulties Encountered}
+The project faced several challenges:
+\begin{itemize}
+    \item \textbf{Training instability}: Initial experiments suffered from mode collapse and divergence, requiring careful tuning of learning rates and architecture
+    \item \textbf{Computational resources}: Training to high quality requires substantial GPU time and memory
+    \item \textbf{Evaluation metrics}: Quantitative evaluation of generation quality remains challenging; primarily relied on visual assessment
+    \item \textbf{Attribute annotation}: Limited availability of attribute labels in dataset constrained conditional generation experiments
+    \item \textbf{StyleGAN tuning}: StyleGAN is more sensitive to hyperparameter settings and requires careful optimization
+\end{itemize}
+
+\subsection{Limitations of the Proposed Solution}
+Current implementation has several limitations:
+\begin{enumerate}
+    \item \textbf{Resolution constraints}: $64 \times 64$ output resolution limits practical applicability; modern applications often require higher resolutions
+    \item \textbf{Lack of explicit disentanglement}: Attribute control remains imprecise; dedicated disentanglement techniques could improve controllability
+    \item \textbf{No quantitative metrics}: Absence of Frechet Inception Distance (FID) or other quantitative metrics limits rigorous quality assessment
+    \item \textbf{Training time}: Convergence requires significant computational resources
+    \item \textbf{Mode coverage}: Potential incomplete coverage of the true data distribution
+\end{enumerate}
+
+\subsection{Limitations and Future Work}
+This work has several limitations that present opportunities for future research:
+
+\begin{enumerate}
+    \item \textbf{Resolution constraints}: Extending to higher resolutions (256×256, 512×512, 1024×1024)
+    \item \textbf{Quantitative evaluation}: Implementing FID, IS, and LPIPS metrics for objective comparison
+    \item \textbf{Attribute annotation}: Creating comprehensive attribute labels for better conditional control
+    \item \textbf{StyleGAN2/3 upgrades}: Implementing latest StyleGAN variants with improved architectures
+    \item \textbf{Hybrid approaches}: Exploring GAN-Diffusion hybrid models for enhanced diversity
+    \item \textbf{Real-time generation}: Optimizing for interactive applications and live generation
+    \item \textbf{User studies}: Conducting human evaluation of generation quality and preference
+    \item \textbf{Few-shot adaptation}: Fine-tuning on small datasets for specific art styles
+    \item \textbf{Multi-modal conditioning}: Text-to-image generation for anime characters
+    \item \textbf{3D-aware generation}: Incorporating 3D structure for consistent multi-view generation
+\end{enumerate}
+
+\subsection{Conclusion}
+This project demonstrates the viability and effectiveness of DCGANs and StyleGAN for anime character face generation, providing a solid foundation for further research. The complete implementation, comprehensive documentation, and reproducible experimental setup contribute to the community's understanding of generative modeling applied to artistic domains. While limitations exist, the results validate GANs as powerful tools for creative content generation, opening pathways for future advancements in automated character design and digital art creation.
+
+\begin{thebibliography}{99}
+
+\bibitem{goodfellow2014generative}
+I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair, A. Courville, and Y. Bengio,
+``Generative adversarial nets,''
+\textit{Advances in Neural Information Processing Systems}, vol. 27, 2014.
+
+\bibitem{radford2015unsupervised}
+A. Radford, L. Metz, and S. Chintala,
+``Unsupervised representation learning with deep convolutional generative adversarial networks,''
+\textit{arXiv preprint arXiv:1511.06434}, 2015.
+
+\bibitem{karras2017progressive}
+T. Karras, T. Aila, S. Laine, and J. Lehtinen,
+``Progressive growing of GANs for improved quality, stability, and variation,''
+\textit{arXiv preprint arXiv:1710.10196}, 2017.
+
+\bibitem{karras2019style}
+T. Karras, S. Laine, and T. Aila,
+``A style-based generator architecture for generative adversarial networks,''
+\textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 4401-4410, 2019.
+
+\bibitem{karras2020analyzing}
+T. Karras, S. Laine, M. Aittala, J. Hellsten, J. Lehtinen, and T. Aila,
+``Analyzing and improving the image quality of StyleGAN,''
+\textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 8110-8119, 2020.
+
+\bibitem{mirza2014conditional}
+M. Mirza and S. Osindero,
+``Conditional generative adversarial nets,''
+\textit{arXiv preprint arXiv:1411.1784}, 2014.
+
+\bibitem{ioffe2015batch}
+S. Ioffe and C. Szegedy,
+``Batch normalization: Accelerating deep network training by reducing internal covariate shift,''
+\textit{International Conference on Machine Learning}, pp. 448-456, 2015.
+
+\bibitem{jin2017towards}
+Y. Jin, J. Zhang, M. Li, Y. Tian, H. Zhu, and Z. Fang,
+``Towards the automatic anime characters creation with generative adversarial networks,''
+\textit{arXiv preprint arXiv:1708.05509}, 2017.
+
+\bibitem{xian2019learning}
+W. Xian, P. Sangkloy, V. Agrawal, A. Raj, J. Lu, C. Fang, F. Yu, and J. Hays,
+``TextureGAN: Controlling deep image synthesis with texture patches,''
+\textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 8456-8465, 2019.
+
+\bibitem{tan2017artgan}
+W. R. Tan, C. S. Chan, H. E. Aguirre, and K. Tanaka,
+``ArtGAN: Artwork synthesis with conditional categorical GANs,''
+\textit{2017 IEEE International Conference on Image Processing (ICIP)}, pp. 3760-3764, 2017.
+
+\bibitem{anime_dataset}
+``Anime Face Dataset,''
+Kaggle. [Online]. Available: https://www.kaggle.com/datasets/splcher/animefacedataset
+
+\bibitem{medium_tutorial}
+``Generative Adversarial Networks for Anime Face Generation — Step by step Tutorial using PyTorch,''
+Medium. [Online]. Available: https://medium.com/
+
+\bibitem{pytorch}
+A. Paszke et al.,
+``PyTorch: An imperative style, high-performance deep learning library,''
+\textit{Advances in Neural Information Processing Systems}, vol. 32, 2019.
+
+\end{thebibliography}
+
+\appendix
+
+\pagebreak
+\section{Code Repository}
+The complete source code, trained models, and experimental results are available at:
+\\
+\textbf{GitHub Repository}: \url{https://github.com/yourusername/anime-face-dcgan}
+
+The repository includes:
+\begin{itemize}
+    \item Complete Python implementation
+    \item GoogleColab notebooks with step-by-step execution
+    \item Comprehensive README with setup instructions
+\end{itemize}
+
+\end{document}

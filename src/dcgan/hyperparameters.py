@@ -1,0 +1,10 @@
+﻿#hyperparameters
+LATENT_DIM = 100
+IMAGE_SIZE = 64
+BATCH_SIZE = 128
+NUM_EPOCHS = 1
+LEARNING_RATE = 0.0002
+BETA1 = 0.5
+BETA2 = 0.999
+NUM_WORKERS = 0
+sample_dir = 'generated'

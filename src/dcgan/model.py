@@ -1,7 +1,7 @@
 ﻿import os
 
 import torch
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from optimizers import Real_loss, Fake_loss
 from hyperparameters import BATCH_SIZE, LATENT_DIM

@@ -1,7 +1,7 @@
 ﻿from torch import nn
 
-from stylegan.adaptive_instance_norm import AdaptiveInstanceNorm
-from stylegan.noise_injection import NoiseInjection
+from adaptive_instance_norm import AdaptiveInstanceNorm
+from noise_injection import NoiseInjection
 
 
 class StyleBlock(nn.Module):

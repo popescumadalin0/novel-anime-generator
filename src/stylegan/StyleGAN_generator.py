@@ -1,8 +1,8 @@
 ﻿import torch
 from torch import nn
 
-from stylegan.mapping_network import MappingNetwork
-from stylegan.style_block import StyleBlock
+from mapping_network import MappingNetwork
+from style_block import StyleBlock
 
 
 class StyleGANGenerator(nn.Module):

@@ -3,12 +3,12 @@
 import torch
 from matplotlib import pyplot as plt
 from torch import optim, nn
+from tqdm import tqdm
 
-from stylegan.StyleGAN_discriminator import StyleGANDiscriminator
-from stylegan.StyleGAN_generator import StyleGANGenerator
-from stylegan.hyperparameters import BETA1, BETA2, LEARNING_RATE
-from stylegan.utils import save_samples
-
+from StyleGAN_discriminator import StyleGANDiscriminator
+from StyleGAN_generator import StyleGANGenerator
+from hyperparameters import BETA1, BETA2, LEARNING_RATE
+from utils import save_samples
 
 def train_stylegan(device, trainloader, fixed_latent, num_epochs=1,
                    batch_size=32, latent_dim=512, lr=LEARNING_RATE):
@@ -49,8 +49,8 @@ def train_stylegan(device, trainloader, fixed_latent, num_epochs=1,
         epoch_g_loss = 0
         epoch_d_loss = 0
 
-        pbar = tqdm(trainloader, desc=f'Epoch {epoch + 1}/{num_epochs}')
-        for i, real_imgs in enumerate(pbar):
+        #pbar = tqdm(trainloader, desc=f'Epoch {epoch + 1}/{num_epochs}')
+        for i, real_imgs in tqdm(trainloader):
             batch_size_curr = real_imgs.size(0)
             real_imgs = real_imgs.to(device)
 

@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from torchvision.utils import save_image, make_grid
 
 from dcgan.utils import denorm
-from stylegan.hyperparameters import sample_dir
+from hyperparameters import sample_dir
 
 
 def save_samples(index, latent_tensors, generator, generatorName, stats, show=True):

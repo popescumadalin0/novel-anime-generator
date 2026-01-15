@@ -1,7 +1,7 @@
 ﻿import torch
 
-from stylegan.hyperparameters import LATENT_DIM
-from stylegan.stylegan import styleGANGenerator
+from hyperparameters import LATENT_DIM
+from stylegan import styleGANGenerator
 
 
 def generate_samples(generator, num_samples=16, latent_dim=512):

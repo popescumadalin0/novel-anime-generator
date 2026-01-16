@@ -17,12 +17,12 @@ def make_array(image_list, display_no_images):
 
     arr = []
     target_size = (IMAGE_SIZE, IMAGE_SIZE)
-    # Randomly select display_no_images images to visualize
+    
     for i in range(display_no_images):
         random_image_path = random.choice(image_list)
-        # Open image, convert to RGB, resize, then convert to numpy array
+        
         img = Image.open(random_image_path).convert('RGB')
-        img_resized = img.resize(target_size) # Resize the image
+        img_resized = img.resize(target_size) 
         arr.append(np.asarray(img_resized))
     return np.array(arr)
 

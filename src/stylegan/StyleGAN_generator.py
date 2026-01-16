@@ -17,22 +17,22 @@ class StyleGANGenerator(nn.Module):
         self.latent_dim = latent_dim
         self.w_dim = w_dim
 
-        # Mapping network
+        
         self.mapping = MappingNetwork(latent_dim, w_dim)
 
-        # Initial constant input (learned)
+        
         self.constant_input = nn.Parameter(torch.randn(1, 512, 4, 4))
 
-        # Synthesis network
+        
         self.style_blocks = nn.ModuleList([
-            StyleBlock(512, 512, w_dim, upsample=False),  # 4x4
-            StyleBlock(512, 512, w_dim, upsample=True),  # 8x8
-            StyleBlock(512, 256, w_dim, upsample=True),  # 16x16
-            StyleBlock(256, 128, w_dim, upsample=True),  # 32x32
-            StyleBlock(128, 64, w_dim, upsample=True),  # 64x64
+            StyleBlock(512, 512, w_dim, upsample=False),  
+            StyleBlock(512, 512, w_dim, upsample=True),  
+            StyleBlock(512, 256, w_dim, upsample=True),  
+            StyleBlock(256, 128, w_dim, upsample=True),  
+            StyleBlock(128, 64, w_dim, upsample=True),  
         ])
 
-        # RGB output layers for each resolution
+        
         self.to_rgb = nn.ModuleList([
             nn.Conv2d(512, img_channels, 1),
             nn.Conv2d(512, img_channels, 1),
@@ -44,17 +44,17 @@ class StyleGANGenerator(nn.Module):
     def forward(self, z, return_w=False):
         batch_size = z.shape[0]
 
-        # Map to intermediate latent space
+        
         w = self.mapping(z)
 
-        # Start with constant input
+        
         x = self.constant_input.repeat(batch_size, 1, 1, 1)
 
-        # Progressive synthesis
+        
         for i, style_block in enumerate(self.style_blocks):
             x = style_block(x, w)
 
-        # Convert to RGB
+        
         img = self.to_rgb[-1](x)
         img = torch.tanh(img)
 

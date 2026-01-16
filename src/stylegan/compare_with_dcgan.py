@@ -5,7 +5,7 @@
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Load StyleGAN
+    
     stylegan = StyleGANGenerator().to(device)
     stylegan.load_state_dict(torch.load(stylegan_path, map_location=device)['generator_state_dict'])
     stylegan.eval()
@@ -15,14 +15,14 @@
     dcgan.eval()
 
     with torch.no_grad():
-        # Generate samples
+        
         z = torch.randn(16, 512, device=device)
 
-        # StyleGAN samples
+        
         stylegan_samples = stylegan(z)
         save_image(stylegan_samples, f'{output_dir}/stylegan_samples.png', nrow=4, normalize=True)
 
-        # DCGAN samples (reshape z if needed)
+        
         z_dcgan = z.unsqueeze(2).unsqueeze(3) if len(dcgan(z[:1]).shape) == 4 else z
         dcgan_samples = dcgan(z_dcgan)
         save_image(dcgan_samples, f'{output_dir}/dcgan_samples.png', nrow=4, normalize=True)

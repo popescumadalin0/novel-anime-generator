@@ -63,7 +63,7 @@ else:
 
 dCGANDiscriminator = DCGANDiscriminator(3).to(device)
 dCGANGenerator = DCGANGenerator(LATENT_DIM).to(device)
-# random latent tensors
+
 noise = torch.randn(BATCH_SIZE, LATENT_DIM, 1, 1).to(device)
 
 fake_images = dCGANGenerator(noise)
@@ -78,7 +78,7 @@ show_images(real_images, stats)
 
 loss_fn = torch.nn.MSELoss()
 
-# Create optimizers for the discriminator D and generator G
+
 opt_d = optim.Adam(dCGANDiscriminator.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
 opt_g = optim.Adam(dCGANGenerator.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
 
@@ -86,13 +86,13 @@ os.makedirs(sample_dir, exist_ok=True)
 
 fixed_latent = torch.randn(IMAGE_SIZE, LATENT_DIM, 1, 1, device=device)
 
-# Complete the training function
+
 losses_g = []
 losses_d = []
 real_scores = []
 fake_scores = []
 
-# Train the GAN
+
 train(dCGANDiscriminator, dCGANGenerator, opt_d, opt_g, stats, loss_fn, trainloader, device, losses_g, losses_d,
       real_scores, fake_scores, fixed_latent, epochs=NUM_EPOCHS)
 

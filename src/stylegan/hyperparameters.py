@@ -6,5 +6,5 @@ BETA1 = 0.0
 BETA2 = 0.99
 LEARNING_RATE = 0.0002
 IMAGE_SIZE = 64
-NUM_WORKERS = 0
+NUM_WORKERS = 1
 sample_dir = 'generated'

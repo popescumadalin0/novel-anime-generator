@@ -23,11 +23,11 @@ def latent_space_interpolation(generator, num_steps=10, latent_dim=512):
     generator.eval()
 
     with torch.no_grad():
-        # Generate two random latent codes
+        
         z1 = torch.randn(1, latent_dim, device=device)
         z2 = torch.randn(1, latent_dim, device=device)
 
-        # Interpolate
+        
         alphas = torch.linspace(0, 1, num_steps, device=device)
         interpolated_images = []
 
@@ -36,7 +36,7 @@ def latent_space_interpolation(generator, num_steps=10, latent_dim=512):
             img = generator(z)
             interpolated_images.append(img)
 
-        # Save grid
+        
         grid = torch.cat(interpolated_images, dim=0)
         print(grid)
 
@@ -44,6 +44,6 @@ def latent_space_interpolation(generator, num_steps=10, latent_dim=512):
 print("\nGenerating samples...")
 generate_samples(styleGANGenerator, num_samples=16, latent_dim=LATENT_DIM)
 
-# Latent space interpolation
+
 print("\nCreating latent space interpolation...")
 latent_space_interpolation(styleGANGenerator, num_steps=10, latent_dim=LATENT_DIM)
